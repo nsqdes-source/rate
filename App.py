@@ -184,8 +184,24 @@ def generate_ai_advisor_report(results, api_key=None):
         try:
             genai.configure(api_key=api_key)
             
-            # قائمة بالنماذج المتاحة للتجربة التلقائية وتفادي أخطاء 404
-            candidate_models = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-pro', 'gemini-1.5-pro']
+            # 1. استكشاف النماذج المتاحة لمفتاح API بشكل ديناميكي
+            candidate_models = []
+            try:
+                for m in genai.list_models():
+                    if 'generateContent' in m.supported_generation_methods:
+                        candidate_models.append(m.name)
+            except Exception:
+                pass
+
+            # 2. قائمة احتياطية في حال تعذر الاستكشاف
+            if not candidate_models:
+                candidate_models = [
+                    'gemini-1.5-flash',
+                    'gemini-1.5-flash-latest',
+                    'models/gemini-1.5-flash',
+                    'gemini-1.0-pro',
+                    'gemini-pro'
+                ]
             
             prompt = f"""بصفتك مستشاراً تنفيذياً متخصصاً في تقييم شركات العمرة، قم بتحليل بيانات الشركة التالية وتقديم 3 توصيات عمل استراتيجية لرفع تصنيفها:
 - النتيجة النهائية: {results['final_score']}%
@@ -198,15 +214,17 @@ def generate_ai_advisor_report(results, api_key=None):
 
 اجعل التوصيات في نقاط واضحة ومباشرة باللغة العربية."""
 
+            last_err = None
             for model_name in candidate_models:
                 try:
                     model = genai.GenerativeModel(model_name)
                     response = model.generate_content(prompt)
                     return f"### 🤖 تحليل ومقترحات الذكاء الاصطناعي (Gemini):\n\n{response.text}"
-                except Exception:
+                except Exception as e:
+                    last_err = e
                     continue
             
-            st.error("لم يتم العثور على نموذج Gemini مدعوم بمفتاح API الحالي. تم عرض التقرير الأساسي تلقائياً.")
+            st.error(f"لم ينجح الاتصال بالنماذج المتاحة. التفاصيل: {last_err}")
         except Exception as e:
             st.error(f"حدث خطأ أثناء الاتصال بمفتاح Gemini: {e}")
 
