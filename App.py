@@ -257,11 +257,11 @@ st.title("🕋 نظام إدارة وتصنيف شركات العمرة 1448هـ
 tab1, tab2 = st.tabs(["📊 إجراء التقييم الحالية", "📜 سجل التقييمات التاريخية"])
 
 with tab1:
-    company_name = st.text_input("اسم الشركة / الرخصة:", "شركة عمرة النموذجية")
+    company_name = st.text_input("اسم الشركة / الرخصة:", "")
     
     st.sidebar.header("⚙️ الخيارات والإعدادات")
     input_mode = st.sidebar.radio("طريقة إدخال البيانات:", ["إدخال يدوي (Manual)", "استيراد ملف Excel"])
-    openai_key = st.sidebar.text_input("مفتاح OpenAI API - اختياري", type="password")
+    openai_key = st.sidebar.text_input("مفتاح OpenAI API (اختياري):", type="password")
     
     data = {}
 
