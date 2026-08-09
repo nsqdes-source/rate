@@ -261,8 +261,8 @@ with tab1:
     
     st.sidebar.header("⚙️ الخيارات والإعدادات")
     input_mode = st.sidebar.radio("طريقة إدخال البيانات:", ["إدخال يدوي (Manual)", "استيراد ملف Excel"])
-    openai_key = st.sidebar.text_input("مفتاح OpenAI API (اختياري):", type="password")
-
+    openai_key = st.sidebar.text_input("مفتاح OpenAI API - اختياري", type="password")
+    
     data = {}
 
     if input_mode == "إدخال يدوي (Manual)":
