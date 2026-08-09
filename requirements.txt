@@ -2,8 +2,8 @@ streamlit
 pandas
 numpy
 plotly
-openai
 reportlab
 openpyxl
 arabic-reshaper
 python-bidi
+google-generativeai
