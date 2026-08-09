@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 import sqlite3
 import json
+import os
 from datetime import datetime
 import google.generativeai as genai
 
@@ -12,15 +13,15 @@ import google.generativeai as genai
 from pdf_generator import generate_pdf_report
 
 # ---------------------------------------------------------
-# الثوابت المعتمدة (المفتاح التلقائي للذكاء الاصطناعي)
+# استدعاء مفتاح الذكاء الاصطناعي بشكل آمن من الأسرار
 # ---------------------------------------------------------
-DEFAULT_GEMINI_KEY = "AQ.Ab8RN6K5XWtbGxReZLsdHQiXi3VAiJDzXhPr5EQ8Qa_P7jskCQ"
+GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", ""))
 
 # ---------------------------------------------------------
 # 0. إعدادات الصفحة وقاعدة البيانات
 # ---------------------------------------------------------
 st.set_page_config(
-    page_title="تصنيف شركات العمرة",
+    page_title="نظام إدارة وتصنيف شركات العمرة 1448هـ",
     page_icon="🕋",
     layout="wide"
 )
@@ -74,14 +75,12 @@ init_db()
 # 1. محرك التقييم الحسابي
 # ---------------------------------------------------------
 def calculate_umrah_company_score(data, lang="العربية"):
-    # أ. تنوع باقات الخدمات (15%)
     total_entry = data.get("total_entry_pilgrims", 0) or 1
     p_luxury = min(1.0, (data.get("luxury_pilgrims", 0) or 0) / total_entry) * 7.0
     p_medium = min(1.0, (data.get("medium_pilgrims", 0) or 0) / total_entry) * 5.0
     p_economy = min(1.0, (data.get("economy_pilgrims", 0) or 0) / total_entry) * 3.0
     score_packages = p_luxury + p_medium + p_economy
 
-    # ب. تجربة المعتمر وجودة الخدمة والمخالفات التشغيلية (45%)
     p_satisfaction = ((data.get("satisfaction_score_pct", 0.0) or 0.0) / 100.0) * 10.0
     p_quality = ((data.get("service_quality_pct", 0.0) or 0.0) / 100.0) * 5.0
     
@@ -98,7 +97,6 @@ def calculate_umrah_company_score(data, lang="العربية"):
 
     score_exp = p_satisfaction + p_quality + p_complaints + p_enrichment + p_compliance
 
-    # ج. الالتزام بالبرنامج (40%)
     total_entry_rec = data.get("total_entry_records", 0) or 1
     p_entry_match = ((data.get("matched_entry_records", 0) or 0) / total_entry_rec) * 10.0
     
@@ -114,10 +112,8 @@ def calculate_umrah_company_score(data, lang="العربية"):
 
     score_prog = p_entry_match + p_arr_boarding + p_inter_boarding + p_dep_boarding + p_exit_match + p_housing
 
-    # مجموع النتيجة الأساسية (100%)
     base_score = score_packages + score_exp + score_prog
 
-    # د. المحفزات (Incentives)
     gift_points = ((data.get("economy_gifts", 0) or 0) * 1) + \
                   ((data.get("medium_gifts", 0) or 0) * 4) + \
                   ((data.get("luxury_gifts", 0) or 0) * 20)
@@ -129,11 +125,8 @@ def calculate_umrah_company_score(data, lang="العربية"):
     award_incentive = 5.0 if data.get("has_ministry_award", False) else 0.0
 
     total_incentives = gift_incentive + umrah_plus_incentive + award_incentive
-
-    # هـ. الخصومات (Penalties)
     severe_violation_penalty = 5.0 if data.get("has_severe_violation", False) else 0.0
 
-    # النتيجة النهائية
     final_score = min(100.0, max(0.0, base_score + total_incentives - severe_violation_penalty))
 
     if lang == "العربية":
@@ -173,9 +166,9 @@ def calculate_umrah_company_score(data, lang="العربية"):
     }
 
 # ---------------------------------------------------------
-# 2. وكيل الذكاء الاصطناعي للاستشارات (عبر Google Gemini)
+# 2. وكيل الذكاء الاصطناعي للاستشارات
 # ---------------------------------------------------------
-def generate_ai_advisor_report(results, api_key=DEFAULT_GEMINI_KEY, language="العربية"):
+def generate_ai_advisor_report(results, api_key=GEMINI_API_KEY, language="العربية"):
     raw = results['raw_data']
     warnings = []
     actions = []
@@ -224,7 +217,7 @@ def generate_ai_advisor_report(results, api_key=DEFAULT_GEMINI_KEY, language="ا
 - مجموع المحفزات: +{results['total_incentives']}%
 - الخصومات المطبقة: -{results['penalties']}%
 
-تعليمات صارمة: يجب أن تكون الإجابة والتحليل والتوصيات بالكامل باللغة العربية فقط، واستخدم أسلوباً استشارياً راقياً ومباشراً."""
+تعليمات صارمة: يجب أن تكون الإجابة والتحليل والتوصيات بالكامل باللغة العربية فقط."""
             else:
                 prompt = f"""You are an executive consultant specializing in evaluating Umrah companies. Analyze the following company data and provide 3 strategic business recommendations to improve its performance:
 - Final Score: {results['final_score']}%
@@ -237,13 +230,7 @@ def generate_ai_advisor_report(results, api_key=DEFAULT_GEMINI_KEY, language="ا
 
 CRITICAL INSTRUCTION: The full analysis and all recommendations MUST be strictly in English."""
 
-            candidate_models = [
-                'gemini-1.5-flash',
-                'gemini-2.0-flash',
-                'gemini-1.5-pro',
-                'models/gemini-1.5-flash'
-            ]
-
+            candidate_models = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro']
             spinner_msg = "🤖 جاري تحليل البيانات وإعداد التوصيات..." if language == "العربية" else "🤖 Analyzing data and generating recommendations..."
             
             with st.spinner(spinner_msg):
@@ -256,14 +243,10 @@ CRITICAL INSTRUCTION: The full analysis and all recommendations MUST be strictly
                             return f"{header}\n\n{response.text}"
                     except Exception:
                         continue
-            
-            warn_msg = "⚠️ تعذر الحصول على رد من نماذج Gemini. تم عرض التقرير الأساسي التلقائي." if language == "العربية" else "⚠️ Could not get a response from Gemini. Showing basic auto-report."
-            st.warning(warn_msg)
         except Exception as e:
-            err_prefix = "حدث خطأ أثناء الاتصال بـ Gemini: " if language == "العربية" else "Error connecting to Gemini: "
-            st.error(f"{err_prefix}{e}")
+            st.error(f"Error: {e}")
 
-    # التقرير البديل للنظام
+    # التقرير البديل
     if language == "العربية":
         report = "### 🤖 تقرير وكيل الذكاء الاصطناعي للاستشارات\n\n"
         if warnings:
@@ -525,7 +508,6 @@ with tab1:
 
         st.rerun()
 
-    # عرض نتائج التقييم الأخير والتقرير
     if 'latest_results' in st.session_state and st.session_state['latest_results']:
         results = st.session_state['latest_results']
         comp_name = st.session_state['latest_company']
@@ -541,11 +523,9 @@ with tab1:
         render_charts(results, ai_language)
         st.markdown("---")
         
-        # استدعاء الذكاء الاصطناعي بالمفتاح التلقائي واللغة المختارة
-        ai_report = generate_ai_advisor_report(results, DEFAULT_GEMINI_KEY, ai_language)
+        ai_report = generate_ai_advisor_report(results, GEMINI_API_KEY, ai_language)
         st.markdown(ai_report)
 
-        # توليد تقرير PDF بنفس اللغة المختارة
         pdf_bytes = generate_pdf_report(comp_name, results, ai_language)
         
         pdf_btn_label = "📄 تصدير التقرير النهائي (PDF)" if is_ar else "📄 Export Final Report (PDF)"
