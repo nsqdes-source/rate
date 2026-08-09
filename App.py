@@ -12,11 +12,30 @@ import google.generativeai as genai
 # استدعاء دالة توليد الـ PDF
 from pdf_generator import generate_pdf_report
 
-# ---------------------------------------------------------
-# استدعاء مفتاح الذكاء الاصطناعي بشكل آمن من الأسرار
-# ---------------------------------------------------------
-GEMINI_API_KEY = "AQ.Ab8RN6K5XWtbGxReZLsdHQiXi3VAiJDzXhPr5EQ8Qa_P7jskCQ"
+# --------------------------------------------------
+# إعداد ومفتاح الذكاء الاصطناعي (مع إمكانية الإدخال اليدوي)
+# --------------------------------------------------
+default_key = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", ""))
 
+# إضافة حقل إدخال يدوي في الشريط الجانبي (Sidebar)
+st.sidebar.markdown("---")
+st.sidebar.subheader("🔑 إعدادات الذكاء الاصطناعي")
+user_api_key = st.sidebar.text_input(
+    "أدخل مفتاح Gemini API:",
+    value=default_key,
+    type="AQ.Ab8RN6K5XWtbGxReZLsdHQiXi3VAiJDzXhPr5EQ8Qa_P7jskCQ",
+    help="أدخل المفتاح الذي حصلت عليه من Google AI Studio"
+)
+
+GEMINI_API_KEY = user_api_key
+
+# تهيئة الذكاء الاصطناعي إذا تم إدخال المفتاح
+if GEMINI_API_KEY:
+    try:
+        genai.configure(api_key=GEMINI_API_KEY)
+    except Exception as e:
+        st.sidebar.error(f"خطأ في تهيئة المفتاح: {e}")
+        
 # ---------------------------------------------------------
 # 0. إعدادات الصفحة وقاعدة البيانات
 # ---------------------------------------------------------
