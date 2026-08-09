@@ -300,7 +300,7 @@ with tab1:
     
     st.sidebar.header("⚙️ الخيارات والإعدادات")
     input_mode = st.sidebar.radio("طريقة إدخال البيانات:", ["إدخال يدوي (Manual)", "استيراد ملف Excel"])
-    gemini_key = st.sidebar.text_input("مفتاح Gemini API - اختياري", type="---")
+    gemini_key = st.sidebar.text_input("مفتاح Gemini API - اختياري", type="passwprd")
     ai_language = st.sidebar.selectbox("لغة تقرير الذكاء الاصطناعي:", ["العربية", "English"])
 
     data = {}
