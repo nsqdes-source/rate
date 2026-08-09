@@ -6,6 +6,7 @@ import plotly.express as px
 import sqlite3
 import json
 from datetime import datetime
+import google.generativeai as genai
 
 # استدعاء دالة توليد الـ PDF
 from pdf_generator import generate_pdf_report
@@ -158,7 +159,7 @@ def calculate_umrah_company_score(data):
     }
 
 # ---------------------------------------------------------
-# 2. وكيل الذكاء الاصطناعي للاستشارات
+# 2. وكيل الذكاء الاصطناعي للاستشارات (عبر Google Gemini)
 # ---------------------------------------------------------
 def generate_ai_advisor_report(results, api_key=None):
     raw = results['raw_data']
@@ -166,7 +167,7 @@ def generate_ai_advisor_report(results, api_key=None):
     actions = []
 
     if raw.get('has_severe_violation', False):
-        warnings.append("🚨 **خصم مباشر (-5%):** تم رصد مخالفة جسيمة خلال الشهر (مثل السكن غير المرخص أو عدم توفر تذاكر المغادرة).")
+        warnings.append("🚨 **خصم مباشر (-5%):** تم رصد مخالفة جسيمة خلال الشهر.")
     
     total_visited = raw.get('total_visited_pilgrims', 0) or 0
     unaffected = raw.get('unaffected_pilgrims', 0) or 0
@@ -181,17 +182,23 @@ def generate_ai_advisor_report(results, api_key=None):
 
     if api_key:
         try:
-            import openai
-            openai.api_key = api_key
-            prompt = f"تحليل تقييم شركة عمرة: النتيجة {results['final_score']}% ({results['tier']}). قدم 3 توصيات تنفيذية."
-            res = openai.ChatCompletion.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=300
-            )
-            return res.choices[0].message.content
-        except Exception:
-            pass
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            prompt = f"""بصفتك مستشاراً تنفيذياً متخصصاً في تقييم شركات العمرة، قم بتحليل بيانات الشركة التالية وتقديم 3 توصيات عمل استراتيجية لرفع تصنيفها:
+- النتيجة النهائية: {results['final_score']}%
+- التصنيف المستحق: {results['tier']}
+- محور تنوع الباقات: {results['score_packages']}/15
+- محور تجربة المعتمر والجودة: {results['score_exp']}/45
+- محور الالتزام بالبرنامج: {results['score_prog']}/40
+- مجموع المحفزات: +{results['total_incentives']}%
+- الخصومات المطبقة: -{results['penalties']}%
+
+اجعل التوصيات في نقاط واضحة ومباشرة باللغة العربية."""
+
+            response = model.generate_content(prompt)
+            return f"### 🤖 تحليل ومقترحات الذكاء الاصطناعي (Gemini):\n\n{response.text}"
+        except Exception as e:
+            st.error(f"حدث خطأ أثناء الاتصال بمفتاح Gemini: {e}")
 
     report = "### 🤖 تقرير وكيل الذكاء الاصطناعي للاستشارات\n\n"
     if warnings:
@@ -257,18 +264,17 @@ st.title("🕋 نظام إدارة وتصنيف شركات العمرة 1448هـ
 tab1, tab2 = st.tabs(["📊 إجراء التقييم الحالية", "📜 سجل التقييمات التاريخية"])
 
 with tab1:
-    company_name = st.text_input("اسم الشركة / الرخصة:", "")
+    company_name = st.text_input("اسم الشركة / الرخصة:", "شركة عمرة النموذجية")
     
     st.sidebar.header("⚙️ الخيارات والإعدادات")
     input_mode = st.sidebar.radio("طريقة إدخال البيانات:", ["إدخال يدوي (Manual)", "استيراد ملف Excel"])
-    openai_key = st.sidebar.text_input("\u200fمفتاح OpenAI API (اختياري)", type="password")
-    
+    gemini_key = st.sidebar.text_input("مفتاح Gemini API - اختياري", type="password")
+
     data = {}
 
     if input_mode == "إدخال يدوي (Manual)":
         col1, col2, col3 = st.columns(3)
         
-        # العمود الأول: تنوع الباقات والمحفزات
         with col1:
             st.markdown("### 1️⃣ تنوع الباقات (15%)")
             
@@ -284,7 +290,6 @@ with tab1:
             with col_eco_in:
                 economy_pilgrims = st.number_input("عدد الباقات الاقتصادية", min_value=0, value=0, step=1, key="in_eco_pax")
 
-            # الحساب التلقائي لإجمالي الباقات والنسب
             v_lux = int(luxury_pilgrims)
             v_mid = int(medium_pilgrims)
             v_eco = int(economy_pilgrims)
@@ -349,7 +354,6 @@ with tab1:
             umrah_plus_beneficiaries = st.number_input("معتمري مبادرة (عمرة+)", min_value=0, value=0, step=1, key="in_umrah_plus")
             has_ministry_award = st.checkbox("حاصل على جائزة من الوزارة (+5%)", key="in_has_award")
 
-        # العمود الثاني: تجربة المعتمر والجودة والمخالفات
         with col2:
             st.markdown("### 2️⃣ تجربة المعتمر والجودة (45%)")
             
@@ -369,7 +373,6 @@ with tab1:
             unaffected_pilgrims = st.number_input("عدد المعتمرين غير المتأثرين بمخالفات", min_value=0, value=0, step=1, key="in_unaff_pax")
             has_severe_violation = st.checkbox("رصد مخالفة جسيمة خلال الشهر (-5%)", key="in_severe_viol")
 
-        # العمود الثالث: الالتزام بالبرنامج
         with col3:
             st.markdown("### 3️⃣ الالتزام بالبرنامج (40%)")
 
@@ -450,7 +453,7 @@ with tab1:
         render_charts(results)
         st.markdown("---")
         
-        ai_report = generate_ai_advisor_report(results, openai_key)
+        ai_report = generate_ai_advisor_report(results, gemini_key)
         st.markdown(ai_report)
 
         pdf_bytes = generate_pdf_report(comp_name, results)
