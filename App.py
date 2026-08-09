@@ -15,7 +15,7 @@ from pdf_generator import generate_pdf_report
 # ---------------------------------------------------------
 # استدعاء مفتاح الذكاء الاصطناعي بشكل آمن من الأسرار
 # ---------------------------------------------------------
-GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", ""))
+GEMINI_API_KEY = "AQ.Ab8RN6K5XWtbGxReZLsdHQiXi3VAiJDzXhPr5EQ8Qa_P7jskCQ"
 
 # ---------------------------------------------------------
 # 0. إعدادات الصفحة وقاعدة البيانات
