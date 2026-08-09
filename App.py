@@ -23,7 +23,7 @@ st.sidebar.subheader("🔑 إعدادات الذكاء الاصطناعي")
 user_api_key = st.sidebar.text_input(
     "أدخل مفتاح Gemini API:",
     value=default_key,
-    type="AQ.Ab8RN6K5XWtbGxReZLsdHQiXi3VAiJDzXhPr5EQ8Qa_P7jskCQ",
+    type="code",
     help="أدخل المفتاح الذي حصلت عليه من Google AI Studio"
 )
 
