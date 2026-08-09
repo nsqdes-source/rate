@@ -14,7 +14,7 @@ from pdf_generator import generate_pdf_report
 # ---------------------------------------------------------
 # الثوابت المعتمدة (المفتاح التلقائي للذكاء الاصطناعي)
 # ---------------------------------------------------------
-DEFAULT_GEMINI_KEY = "AQ.Ab8RN6IE_JkRVldBJg1mEt1qYGwfgS8sHBfWis5FzNrSEI8fEA"
+DEFAULT_GEMINI_KEY = "AQ.Ab8RN6K5XWtbGxReZLsdHQiXi3VAiJDzXhPr5EQ8Qa_P7jskCQ"
 
 # ---------------------------------------------------------
 # 0. إعدادات الصفحة وقاعدة البيانات
