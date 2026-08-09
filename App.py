@@ -20,7 +20,7 @@ DEFAULT_GEMINI_KEY = "AQ.Ab8RN6IE_JkRVldBJg1mEt1qYGwfgS8sHBfWis5FzNrSEI8fEA"
 # 0. إعدادات الصفحة وقاعدة البيانات
 # ---------------------------------------------------------
 st.set_page_config(
-    page_title="تصنيف شركات العمرة 1448هـ",
+    page_title="تصنيف شركات العمرة",
     page_icon="🕋",
     layout="wide"
 )
