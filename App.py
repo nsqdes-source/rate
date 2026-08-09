@@ -161,7 +161,7 @@ def calculate_umrah_company_score(data):
 # ---------------------------------------------------------
 # 2. وكيل الذكاء الاصطناعي للاستشارات (عبر Google Gemini)
 # ---------------------------------------------------------
-def generate_ai_advisor_report(results, api_key=None, language="العربية"):
+def generate_ai_advisor_report(results, api_key=None):
     raw = results['raw_data']
     warnings = []
     actions = []
@@ -180,13 +180,30 @@ def generate_ai_advisor_report(results, api_key=None, language="العربية")
         gain = round((pts_needed * 2 / 2000) * 10, 1)
         actions.append(f"💡 **تفعيل مبادرة (عمرة+):** تسجيل {pts_needed} معتمر إضافي يمنحك زيادة تحفيزية قدرها **+{gain}%**.")
 
-    if api_key and api_key.strip():
-        clean_key = api_key.strip()
+    if api_key:
         try:
-            genai.configure(api_key=clean_key)
+            genai.configure(api_key=api_key)
             
-            if language == "العربية":
-                prompt = f"""أنت مستشار تنفيذي متخصص في تقييم شركات العمرة. قم بتحليل بيانات الشركة التالية وتقديم 3 توصيات عمل استراتيجية لرفع تصنيفها:
+            # 1. استكشاف النماذج المتاحة لمفتاح API بشكل ديناميكي
+            candidate_models = []
+            try:
+                for m in genai.list_models():
+                    if 'generateContent' in m.supported_generation_methods:
+                        candidate_models.append(m.name)
+            except Exception:
+                pass
+
+            # 2. قائمة احتياطية في حال تعذر الاستكشاف
+            if not candidate_models:
+                candidate_models = [
+                    'gemini-1.5-flash',
+                    'gemini-1.5-flash-latest',
+                    'models/gemini-1.5-flash',
+                    'gemini-1.0-pro',
+                    'gemini-pro'
+                ]
+            
+            prompt = f"""بصفتك مستشاراً تنفيذياً متخصصاً في تقييم شركات العمرة، قم بتحليل بيانات الشركة التالية وتقديم 3 توصيات عمل استراتيجية لرفع تصنيفها:
 - النتيجة النهائية: {results['final_score']}%
 - التصنيف المستحق: {results['tier']}
 - محور تنوع الباقات: {results['score_packages']}/15
@@ -195,40 +212,19 @@ def generate_ai_advisor_report(results, api_key=None, language="العربية")
 - مجموع المحفزات: +{results['total_incentives']}%
 - الخصومات المطبقة: -{results['penalties']}%
 
-تعليمات صارمة: يجب أن تكون الإجابة والتحليل والتوصيات بالكامل باللغة العربية فقط، واستخدم أسلوباً استشارياً راقياً ومباشراً."""
-            else:
-                prompt = f"""You are an executive consultant specializing in evaluating Umrah companies. Analyze the following company data and provide 3 strategic business recommendations to improve its performance:
-- Final Score: {results['final_score']}%
-- Current Tier: {results['tier']}
-- Package Diversity Pillar: {results['score_packages']}/15
-- Pilgrim Experience & Quality Pillar: {results['score_exp']}/45
-- Program Commitment Pillar: {results['score_prog']}/40
-- Total Incentives: +{results['total_incentives']}%
-- Applied Penalties: -{results['penalties']}%
+اجعل التوصيات في نقاط واضحة ومباشرة باللغة العربية."""
 
-CRITICAL INSTRUCTION: The full analysis and all recommendations MUST be strictly in English."""
-
-            candidate_models = [
-                'gemini-1.5-flash',
-                'gemini-2.0-flash',
-                'gemini-1.5-pro',
-                'models/gemini-1.5-flash'
-            ]
-
-            spinner_msg = "🤖 جاري تحليل البيانات وإعداد التوصيات..." if language == "العربية" else "🤖 Generating AI analysis..."
+            last_err = None
+            for model_name in candidate_models:
+                try:
+                    model = genai.GenerativeModel(model_name)
+                    response = model.generate_content(prompt)
+                    return f"### 🤖 تحليل ومقترحات الذكاء الاصطناعي (Gemini):\n\n{response.text}"
+                except Exception as e:
+                    last_err = e
+                    continue
             
-            with st.spinner(spinner_msg):
-                for model_name in candidate_models:
-                    try:
-                        model = genai.GenerativeModel(model_name)
-                        response = model.generate_content(prompt)
-                        if response and response.text:
-                            header = "### 🤖 تحليل ومقترحات الذكاء الاصطناعي (Gemini):" if language == "العربية" else "### 🤖 AI Advisor Analysis & Recommendations (Gemini):"
-                            return f"{header}\n\n{response.text}"
-                    except Exception:
-                        continue
-            
-            st.warning("⚠️ تعذر الحصول على رد من نماذج Gemini. تم عرض التقرير الأساسي التلقائي.")
+            st.error(f"لم ينجح الاتصال بالنماذج المتاحة. التفاصيل: {last_err}")
         except Exception as e:
             st.error(f"حدث خطأ أثناء الاتصال بمفتاح Gemini: {e}")
 
@@ -300,8 +296,7 @@ with tab1:
     
     st.sidebar.header("⚙️ الخيارات والإعدادات")
     input_mode = st.sidebar.radio("طريقة إدخال البيانات:", ["إدخال يدوي (Manual)", "استيراد ملف Excel"])
-    gemini_key = st.sidebar.text_input("مفتاح Gemini API - اختياري", type="default")
-    ai_language = st.sidebar.selectbox("لغة تقرير الذكاء الاصطناعي:", ["العربية", "English"])
+    gemini_key = st.sidebar.text_input("مفتاح Gemini API - اختياري", type="password")
 
     data = {}
 
@@ -486,7 +481,7 @@ with tab1:
         render_charts(results)
         st.markdown("---")
         
-        ai_report = generate_ai_advisor_report(results, gemini_key, ai_language)
+        ai_report = generate_ai_advisor_report(results, gemini_key)
         st.markdown(ai_report)
 
         pdf_bytes = generate_pdf_report(comp_name, results)
