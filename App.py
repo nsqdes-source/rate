@@ -183,7 +183,10 @@ def generate_ai_advisor_report(results, api_key=None):
     if api_key:
         try:
             genai.configure(api_key=api_key)
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            
+            # قائمة بالنماذج المتاحة للتجربة التلقائية وتفادي أخطاء 404
+            candidate_models = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-pro', 'gemini-1.5-pro']
+            
             prompt = f"""بصفتك مستشاراً تنفيذياً متخصصاً في تقييم شركات العمرة، قم بتحليل بيانات الشركة التالية وتقديم 3 توصيات عمل استراتيجية لرفع تصنيفها:
 - النتيجة النهائية: {results['final_score']}%
 - التصنيف المستحق: {results['tier']}
@@ -195,8 +198,15 @@ def generate_ai_advisor_report(results, api_key=None):
 
 اجعل التوصيات في نقاط واضحة ومباشرة باللغة العربية."""
 
-            response = model.generate_content(prompt)
-            return f"### 🤖 تحليل ومقترحات الذكاء الاصطناعي (Gemini):\n\n{response.text}"
+            for model_name in candidate_models:
+                try:
+                    model = genai.GenerativeModel(model_name)
+                    response = model.generate_content(prompt)
+                    return f"### 🤖 تحليل ومقترحات الذكاء الاصطناعي (Gemini):\n\n{response.text}"
+                except Exception:
+                    continue
+            
+            st.error("لم يتم العثور على نموذج Gemini مدعوم بمفتاح API الحالي. تم عرض التقرير الأساسي تلقائياً.")
         except Exception as e:
             st.error(f"حدث خطأ أثناء الاتصال بمفتاح Gemini: {e}")
 
